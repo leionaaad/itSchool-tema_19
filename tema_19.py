@@ -1,5 +1,4 @@
 import mysql.connector as mc
-import datetime
 
 dbHost = "127.0.0.1"
 dbUser = "root"
@@ -21,6 +20,15 @@ def checkIfExists(name, table) -> bool:
     else:
         print(f"{name} exista deja, pretene.")
         return True
+    
+def getId(name, table) -> int:
+    cursor.execute(f"SELECT ID FROM {table} WHERE `Nume` LIKE '{name}'")
+    return cursor.fetchone()[0]
+
+def getNameFromId(id, table) -> str:
+    cursor.execute(f"SELECT `Nume` FROM {table} WHERE `Id` = {id}")
+    return cursor.fetchone()[0]
+
 
 
 # creati functii de insert in tabela echipe 
@@ -51,12 +59,10 @@ def addClubFromTerminal():
 
 # creati functii de insert in tabela jucatori 
 def addPlayer(name, surname, birthday, value, team):
-    #get ID of the team. or something. 
-    cursor.execute(f"SELECT ID FROM {teamsTable} WHERE `NUME` LIKE '{team}'")
-    teamID = cursor.fetchone()[0]
+    #get ID of the team. or something.
 
     if not checkIfExists(name, playersTable):
-        cursor.execute(f"INSERT INTO {playersTable} (`Nume`, `Prenume`, `Data_Nasterii`, `Valoare`, `Echipa`) VALUES ('{name}', '{surname}', '{birthday}', {value}, {teamID})")
+        cursor.execute(f"INSERT INTO {playersTable} (`Nume`, `Prenume`, `Data_Nasterii`, `Valoare`, `Echipa`) VALUES ('{name}', '{surname}', '{birthday}', {value}, {getId(team, teamsTable)})")
         dbConn.commit()
         print(f"Am adaugat-o pe {name} la lista de jucatori.")
 
@@ -95,35 +101,75 @@ def listTeams() :
 
 
 
-
 # creati o functie pentru calcularea valorii celui mai scump jucator de la echipa a carui id este transmis ca parametru 
 def getMostExpensivePlayer(club):
-    pass
+    cursor.execute(f"SELECT * FROM {playersTable} WHERE `Id` = {getId(club, teamsTable)} AND (SELECT MAX(`Valoare`) FROM {playersTable});")
+    return cursor.fetchone()
+    
+
+
+def printMostExpensivePlayer(club):
+    result = getMostExpensivePlayer(club)
+    print(f"Cea mai scumpa jucatoare din {club} e {result[1]} {result[2]}, in valoare de {result[4]} de lei sau euro. Nici nu stiu")
 
 
 
 # -creati o functie care le imbina pe cele 2 de mai sus astfel: se afiseaza toate echipele disponibile, 
 # se citeste id-ul echipei de la tastatura si apoi se apeleaza functia care afiseaza cel mai scump jucator de la echipa respectiva
 def getMostExpensiveFromTeamsList():
-    pass
+    listTeams()
+    clubSelection = getNameFromId(int(input("Scumpa de la care grup vrei sa vezi? tasteaza ID-ul: ")), teamsTable)
+    printMostExpensivePlayer(clubSelection)
 
 
 
 # calculati numaru de jucatori din fiecare echipa (vedeti problema cu group by din cursul anterior)
 def getNumberOfPlayers():
-    pass
+    cursor.execute(f"SELECT {teamsTable}.Nume, COUNT(*) FROM {teamsTable} INNER JOIN {playersTable} ON {teamsTable}.Id = {playersTable}.Echipa GROUP BY {teamsTable}.Nume")
+    return cursor.fetchall()
+
+
+
+def printNumberOfPlayers():
+    players = getNumberOfPlayers()
+    verb = None
+
+    for p in players:
+        if p[1] == 1:
+            verb = "Este"
+        else:
+            verb = "Sunt"
+        print(f"{verb} {p[1]} jucatoare in clubu din {p[0]}")
 
 
 
 # calculati cel mai scump jucator din fiecare echipa (tot cu group by trebuie )
 def getAllMostExpensivePlayers():
-    pass
+    sqlCmd = f"SELECT {playersTable}.Nume, {playersTable}.Prenume, {playersTable}.Valoare, {teamsTable}.Nume FROM {playersTable} INNER JOIN {teamsTable} ON {teamsTable}.Id = {playersTable}.Echipa INNER JOIN (SELECT Echipa, MAX(Valoare) AS 'MaxValoare' FROM {playersTable} GROUP BY Echipa) AS MaxValues ON {playersTable}.Echipa = MaxValues.Echipa AND {playersTable}.Valoare = MaxValues.MaxValoare;"
+    cursor.execute(sqlCmd)
+    return cursor.fetchall()
+
+
+
+def printAllMostExpensivePlayers():
+    playerInfos = getAllMostExpensivePlayers()
+    for i in playerInfos:
+        print(f"Cea mai scumpa din {i[3]} ii {i[0]} {i[1]}, are {i[2]}")
 
 
 
 # calculati valoarea lotului fiecarei echipe
-def getClubValue():
-    pass
+def getClubValues():
+    cursor.execute(f"SELECT SUM(Valoare), {teamsTable}.Nume FROM {playersTable} INNER JOIN {teamsTable} ON {teamsTable}.Id = {playersTable}.Echipa GROUP BY {teamsTable}.Nume")
+    return cursor.fetchall()
+
+
+
+def printClubValues():
+    clubsAndValues = getClubValues()
+    print(f"Valoarea cluburilor este urmatoarele, nu stim daca e in euro sau lei:")
+    for c in clubsAndValues:
+        print(f"{c[1]} : {c[0]}")
 
 
 
@@ -133,7 +179,11 @@ def getClubValue():
 # addPlayer("Matyas",  "Hajnalka", "1989-05-21", 300000, "Csikszereda")
 # addPlayerFromTerminal()
 # listTeams()
-
+# getMostExpensivePlayer("Castelsardo")
+# getMostExpensiveFromTeamsList()
+# printNumberOfPlayers()
+# printAllMostExpensivePlayers()
+# printClubValues()
 
 #cleanup the bullcrap
 cursor.close()
