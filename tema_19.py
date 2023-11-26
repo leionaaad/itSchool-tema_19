@@ -1,4 +1,5 @@
 import mysql.connector as mc
+import datetime
 
 dbHost = "127.0.0.1"
 dbUser = "root"
@@ -12,24 +13,86 @@ cursor = dbConn.cursor()
 
 
 
+def checkIfExists(name, table) -> bool:
+    cursor.execute(f"SELECT EXISTS(SELECT * FROM {table} WHERE `Nume` = '{name}')")
+    res = cursor.fetchone()
+    if res[0] == 0:
+        return False
+    else:
+        print(f"{name} exista deja, pretene.")
+        return True
+
+
 # creati functii de insert in tabela echipe 
 def addClub(name, colors, founded, fans):
-    #check if the club already exists
+    if checkIfExists(name, teamsTable) == False:
+        cursor.execute(f"INSERT INTO {teamsTable} (`Nume`, `Culori`, `Infiintat`, `Suporteri`) VALUES ('{name}', '{colors}', {founded}, {fans})")
+        dbConn.commit()
+        print(f"{name} a fost adaugat in lista noastra de cluburi. Inca o optiune de spalat bani. ")
+        
+
+
+def addClubFromTerminal():
+    name = input("Numele Clubului: ")
+    colors = ""
+    founded = None
+    fans = 0
+
+    if checkIfExists(name, teamsTable) == False:
+        colors = input("Ce culori are acum? ")
+        founded = int(input("De cand exista? "))
+        fans = int(input("Cati fani are?"))
+    else:
+        return
     
-    cursor.execute(f"INSERT INTO {teamsTable} (`Nume`, `Culori`, `Infiintat`, `Suporteri`) VALUES ('{name}', '{colors}', {founded}, {fans})")
-    dbConn.commit()
+    addClub(name, colors, founded, fans)
 
 
 
 # creati functii de insert in tabela jucatori 
-def addPlayer():
-    pass
+def addPlayer(name, surname, birthday, value, team):
+    #get ID of the team. or something. 
+    cursor.execute(f"SELECT ID FROM {teamsTable} WHERE `NUME` LIKE '{team}'")
+    teamID = cursor.fetchone()[0]
+
+    if not checkIfExists(name, playersTable):
+        cursor.execute(f"INSERT INTO {playersTable} (`Nume`, `Prenume`, `Data_Nasterii`, `Valoare`, `Echipa`) VALUES ('{name}', '{surname}', '{birthday}', {value}, {teamID})")
+        dbConn.commit()
+        print(f"Am adaugat-o pe {name} la lista de jucatori.")
+
+
+
+def addPlayerFromTerminal():
+    name = input("Numele: ")
+    year = None
+    month = None
+    day = None
+    value = 0
+    team = None
+
+    if not checkIfExists(name, playersTable):
+        surname = input("Prenumele: ")
+        year = input("Anul Nasterii: ")
+        month = input("Luna: ")
+        day = input("Ziua: ")
+        value = input("Valoarea jucatorului: ")
+        team = input("Echipa: ")
+    else:
+        return
+    
+    birthday = f"{year}={month}-{day}"
+    addPlayer(name, surname, birthday, value, team)
 
 
 
 # creati o functie care afiseaza toate echipele disponibile (executa select in baza de date si le afiseaza pe cate o linie in forma: id nume) 
-def getTeams() :
-    pass
+def listTeams() :
+    cursor.execute(f"SELECT Id, Nume FROM {teamsTable}")
+    result = cursor.fetchall()
+    print(f"ID {24*'_'} NUME")
+    for e in result:
+        print(f"{e[0]} {25*'_'} {e[1]}")
+
 
 
 
@@ -63,5 +126,15 @@ def getClubValue():
     pass
 
 
+
 #Call these functions
-addClub("Csikszereda", "kek, okker", 1990, 200000)
+# addClub("Csikszereda", "kek, okker", 1990, 200000)
+# addClubFromTerminal()
+# addPlayer("Matyas",  "Hajnalka", "1989-05-21", 300000, "Csikszereda")
+# addPlayerFromTerminal()
+# listTeams()
+
+
+#cleanup the bullcrap
+cursor.close()
+dbConn.close()
